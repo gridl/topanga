@@ -75,18 +75,16 @@ class Application(object):
 
         def get_name(c):
             """ Retrieve container name from dict. """
-            return c['Names'][0].lstrip('/')
+            return c['Names'][0]
 
-        # Go through all containers and look at
+        # Go through all containers and look at their Labels to see
+        # if our application name is in there.
         for c in client.containers(all=True):
             if has_application_tag(c):
-                # TODO:
-                # we should be able to create an instance of Container class
-                # from docker-py's Container dict.
-                cs[get_name(c)] = Container.create_from_dict(c)
+                cs[get_name(c)] = Container.from_ps(c)
 
         if cs:
-            return Application(containers=cs)
+            return Application(name, containers=cs)
         else:
             raise Exception(
                 'There are no containers for application {0}'.format(name))
