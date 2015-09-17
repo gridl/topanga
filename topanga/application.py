@@ -33,6 +33,9 @@ class Application(object):
         self.containers = containers
         self.filename = filename
 
+        if not containers:
+            self.containers = {}
+
         if containers:
             for container in containers:
                 self.containers[container.name] = container
