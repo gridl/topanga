@@ -14,7 +14,8 @@ setup(
     author_email='francis[dot]ridder[at]gmail[dot]com',
     version=__version__,
     install_requires=[
-        'docker-py>=1.4.0'
+        'docker-py>=1.4.0',
+        'six >= 1.3.0, < 2',
     ],
     extras_require={
         'testing': [
