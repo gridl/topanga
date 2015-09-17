@@ -73,15 +73,12 @@ class Application(object):
             return c.get('Labels', {}).get(cls.label_key) and \
                    c['Labels'][cls.label_key] == name
 
-        def get_name(c):
-            """ Retrieve container name from dict. """
-            return c['Names'][0]
-
         # Go through all containers and look at their Labels to see
         # if our application name is in there.
-        for c in client.containers(all=True):
-            if has_application_tag(c):
-                cs[get_name(c)] = Container.from_ps(c)
+        for cdict in client.containers(all=True):
+            if has_application_tag(cdict):
+                container = Container.from_ps(cdict)
+                cs[container.name] = container
 
         if cs:
             return Application(name, containers=cs)
