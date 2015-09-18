@@ -8,4 +8,4 @@ def test_ctor(application):
     :return:
     """
     assert application.name == 'test'
-    assert application.containers == {}
+    assert application.services == {}
