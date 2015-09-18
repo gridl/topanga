@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import networkx as nx
+
 from docker import Client
 from .container import Container
 
@@ -15,36 +17,23 @@ class Application(object):
     """
 
     name = None
-    client = None
     containers = {}
-    filename = None
     label_key = 'topanga.app'
 
-    def __init__(self, name, client=None, containers=None, filename=None):
+    def __init__(self, name, containers=None):
         """
         Initialize the Application
 
         :param name: string unique name
-        :param client: docker-py's client
-        :param filename: string YAML file name
+        :param containers: list of type Container
         """
         self.name = name
-        self.client = client
-        self.containers = containers
-        self.filename = filename
 
         if not containers:
             self.containers = {}
-
-        if containers:
+        else:
             for container in containers:
                 self.containers[container.name] = container
-        elif filename:
-            instance = self.create_from_filename(filename)
-            self.containers = instance.containers
-        elif client:
-            instance = self.create_from_client(name, client)
-            self.containers = instance.containers
 
     def add_container(self, container):
         """
@@ -53,11 +42,58 @@ class Application(object):
         """
         self.containers[container.name] = container
 
-    @classmethod
-    def create_from_client(cls, name, client):
+    def start(self, client):
         """
-        Read all containers running in docker with either this name prefix,
-        or this name tag.
+        Start all containers in correct (topological) order.
+        :param client: `Client`
+        """
+        for cname in self.topology(client):
+            self.containers[cname].start()
+
+    def stop(self, client):
+        """
+        Stop all containers in correct (reverse topological) order.
+        :param client: `Client`
+        """
+        for cname in self.topology(client, reverse=True):
+            self.containers[cname].stop()
+
+    def topology(self, client, reverse=False):
+        """
+        List containing topological sorting of containers.
+        :param client: `Client`
+        :return: list
+        """
+        g = nx.DiGraph(self.containers.keys())
+
+        for c in self.containers.values():
+
+            # Add edges from linked containers to this one.
+            for link_name in c.links:
+                g.add_edge(link_name, c.name)
+
+            # Add edges from containers listed in "--net" to this one.
+            net = c.get('HostConfig.NetworkMode')
+            if net.startswith('container:'):
+                other_name = net.split('container:')[0]
+                other_name = other_name.split['/'][-1]
+                g.add_edge(other_name, c.name)
+
+            # Add edges from containers listed in "--volumes-from" to this one.
+            for cid in c.get('HostConfig.VolumesFrom'):
+                other = Container.from_id(client, cid)
+                g.add_edge(other.name, c.name)
+
+        return nx.topological_sort(g, reverse=reverse)
+
+    @classmethod
+    def labels(cls, name):
+        return ['{0}={1}'.format(cls.label_key, name)]
+
+    @classmethod
+    def from_client(cls, name, client):
+        """
+        Read all containers running in docker labeled with this app name.
 
         :param name: string unique name
         :param client: `Client`
@@ -66,32 +102,28 @@ class Application(object):
 
         assert isinstance(client, Client)
 
-        cs = {}
+        containers = {}
 
-        def has_application_tag(c):
-            """ Is container marked with this application name? """
-            return c.get('Labels', {}).get(cls.label_key) and \
-                   c['Labels'][cls.label_key] == name
+        # See if there's any containers labeled into this Application.
+        for cdict in client.containers(
+                all=True,
+                filters={'labels': cls.labels(name)}):
+            container = Container.from_ps(cdict)
+            containers[container.name] = container
 
-        # Go through all containers and look at their Labels to see
-        # if our application name is in there.
-        for cdict in client.containers(all=True):
-            if has_application_tag(cdict):
-                container = Container.from_ps(cdict)
-                cs[container.name] = container
-
-        if cs:
-            return Application(name, containers=cs)
+        if containers:
+            return Application(name, containers=containers)
         else:
             raise Exception(
                 'There are no containers for application {0}'.format(name))
 
     @classmethod
-    def create_from_filename(cls, filename):
+    def from_filename(cls, name, filename):
         """
         Read all containers from the provided YAML file.
 
         :param name: string unique name
+        :param filename: string YAML file name
         :return: `Application`
         """
         # TODO

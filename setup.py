@@ -16,6 +16,7 @@ setup(
     install_requires=[
         'docker-py>=1.4.0',
         'six >= 1.3.0, < 2',
+        'networkx>=1.10',
     ],
     extras_require={
         'testing': [
