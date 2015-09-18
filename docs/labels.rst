@@ -8,4 +8,12 @@ Initial Labels::
   topanga.app.name
   topanga.app.application_name
   topanga.app.links
-  topanga.app.volumes
+  topanga.app.volumes_from
+
+For links and volumes_from it will have a JSON string of the structure::
+
+  {
+    logical: [<names>],
+    current: [<container_ids>]
+  }
+
