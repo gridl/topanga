@@ -5,7 +5,7 @@ or a file, we need to be able to inspect a group of running containers and get b
 
 Initial Labels::
 
-  name
-  application_name
-  links
-  volumes
+  topanga.app.name
+  topanga.app.application_name
+  topanga.app.links
+  topanga.app.volumes
